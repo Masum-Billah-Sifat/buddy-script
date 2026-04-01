@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth/require-user";
 import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/api/responses";
 import { readJson, getTrimmedString } from "@/lib/api/request";
-import { serializeComment } from "@/lib/comments/serializers";
+import { RawComment, serializeComment } from "@/lib/comments/serializers";
 
 type CreateCommentBody = {
   contentText?: string;
@@ -60,7 +60,7 @@ export async function GET(
 
     return ok({
       ok: true,
-      comments: comments.map((comment) => serializeComment(comment, user.id)),
+      comments: comments.map((comment : RawComment) => serializeComment(comment, user.id)),
     });
   } catch {
     return serverError();

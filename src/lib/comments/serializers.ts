@@ -1,4 +1,4 @@
-type RawComment = {
+export type RawComment = {
   id: string;
   contentText: string;
   createdAt: Date;
