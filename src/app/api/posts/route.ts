@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth/require-user";
 import { badRequest, ok, serverError, unauthorized } from "@/lib/api/responses";
 import { readJson, getTrimmedString } from "@/lib/api/request";
-import { serializePost } from "@/lib/posts/serializers";
+import { RawPost, serializePost } from "@/lib/posts/serializers";
 
 export async function GET() {
   try {
@@ -47,7 +47,7 @@ export async function GET() {
 
     return ok({
       ok: true,
-      posts: posts.map((post) => serializePost(post, user.id)),
+      posts: posts.map((post : RawPost) => serializePost(post, user.id)),
     });
   } catch {
     return serverError();

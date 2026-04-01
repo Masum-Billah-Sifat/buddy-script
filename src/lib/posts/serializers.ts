@@ -1,4 +1,4 @@
-type RawPost = {
+export type RawPost = {
   id: string;
   contentText: string;
   imageUrl: string | null;
