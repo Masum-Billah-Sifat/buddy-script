@@ -1,4 +1,4 @@
-type RawReply = {
+export type RawReply = {
   id: string;
   contentText: string;
   createdAt: Date;
@@ -18,6 +18,8 @@ type RawReply = {
     };
   }>;
 };
+
+
 
 export function serializeReply(reply: RawReply, currentUserId: string) {
   return {

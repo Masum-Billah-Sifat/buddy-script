@@ -2,7 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth/require-user";
 import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/api/responses";
 import { readJson, getTrimmedString } from "@/lib/api/request";
-import { serializeReply } from "@/lib/replies/serializers";
+// import { serializeReply } from "@/lib/replies/serializers";
+import { serializeReply, type RawReply } from "@/lib/replies/serializers";
 
 type CreateReplyBody = {
   contentText?: string;
@@ -62,7 +63,7 @@ export async function GET(
 
     return ok({
       ok: true,
-      replies: replies.map((reply) => serializeReply(reply, user.id)),
+      replies: replies.map((reply : RawReply) => serializeReply(reply, user.id)),
     });
   } catch {
     return serverError();
