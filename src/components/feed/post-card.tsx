@@ -43,6 +43,17 @@ type FeedPost = {
   likedByMe: boolean;
 };
 
+type LikeUser = {
+  id: string;
+  createdAt: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    avatarUrl: string | null;
+  };
+};
+
 type Props = {
   post: FeedPost;
   mode: "light" | "dark";
@@ -62,15 +73,22 @@ export default function PostCard({ post, mode }: Props) {
   const [repliesByCommentId, setRepliesByCommentId] = useState<Record<string, FeedReply[]>>({});
   const [loadingReplies, setLoadingReplies] = useState<Record<string, boolean>>({});
 
-  const shell = isDark
-    ? "bg-[#0e2240] border border-[#17345f] text-white"
-    : "bg-white border border-[#edf1f7] text-[#18243d]";
+  const [likesModalOpen, setLikesModalOpen] = useState(false);
+  const [likesLoading, setLikesLoading] = useState(false);
+  const [likedUsers, setLikedUsers] = useState<LikeUser[]>([]);
+  const [likesModalTitle, setLikesModalTitle] = useState("Liked by");
+
+  const shell =
+    isDark
+      ? "bg-[#0e2240] border border-[#17345f] text-white"
+      : "bg-white border border-[#edf1f7] text-[#18243d]";
 
   const muted = isDark ? "text-[#8ca3c3]" : "text-[#7d8ca1]";
   const soft = isDark ? "bg-[#12294a]" : "bg-[#f7f9fc]";
-  const action = isDark
-    ? "hover:bg-[#16355f] text-[#dbe8ff]"
-    : "hover:bg-[#eef5ff] text-[#21314f]";
+  const action =
+    isDark
+      ? "hover:bg-[#16355f] text-[#dbe8ff]"
+      : "hover:bg-[#eef5ff] text-[#21314f]";
 
   const togglePostLike = async () => {
     const res = await fetch(`/api/posts/${post.id}/like`, {
@@ -81,6 +99,28 @@ export default function PostCard({ post, mode }: Props) {
     if (res.ok && data.ok) {
       setLikedByMe(data.liked);
       setLikeCount(data.likeCount);
+    }
+  };
+
+  const openLikesModal = async (url: string, title: string) => {
+    try {
+      setLikesLoading(true);
+      setLikesModalTitle(title);
+      setLikedUsers([]);
+      setLikesModalOpen(true);
+
+      const res = await fetch(url, {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.ok) {
+        setLikedUsers(data.likes);
+      }
+    } finally {
+      setLikesLoading(false);
     }
   };
 
@@ -249,7 +289,9 @@ export default function PostCard({ post, mode }: Props) {
       </div>
 
       {post.contentText ? (
-        <p className="mt-5 whitespace-pre-wrap text-lg leading-8">{post.contentText}</p>
+        <p className="mt-5 whitespace-pre-wrap text-lg leading-8">
+          {post.contentText}
+        </p>
       ) : null}
 
       {post.imageUrl ? (
@@ -265,10 +307,17 @@ export default function PostCard({ post, mode }: Props) {
       <div className={`mt-5 flex items-center justify-between text-sm ${muted}`}>
         <div className="flex items-center gap-2">
           <div className="flex -space-x-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-[#2f80ed] text-xs text-white">👍</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-[#ff5a79] text-xs text-white">❤</span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-[#2f80ed] text-xs text-white">
+              👍
+            </span>
           </div>
-          <span>{likeCount} Likes</span>
+          <button
+            type="button"
+            onClick={() => openLikesModal(`/api/posts/${post.id}/likes`, "Post likes")}
+            className="hover:underline"
+          >
+            {likeCount} Likes
+          </button>
         </div>
         <div className="flex items-center gap-4">
           <span>{comments.length || post.commentCount} Comment</span>
@@ -329,9 +378,7 @@ export default function PostCard({ post, mode }: Props) {
             </div>
           </div>
 
-          {commentsLoading ? (
-            <p className={muted}>Loading comments...</p>
-          ) : null}
+          {commentsLoading ? <p className={muted}>Loading comments...</p> : null}
 
           {comments.map((comment) => {
             const replies = repliesByCommentId[comment.id] || [];
@@ -359,9 +406,24 @@ export default function PostCard({ post, mode }: Props) {
                     </div>
 
                     <div className={`mt-2 flex items-center gap-4 text-sm ${muted}`}>
-                      <button type="button" onClick={() => toggleCommentLike(comment.id)}>
-                        {comment.likedByMe ? "Unlike" : "Like"} ({comment.likeCount})
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleCommentLike(comment.id)}
+                        >
+                          {comment.likedByMe ? "Unlike" : "Like"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openLikesModal(`/api/comments/${comment.id}/likes`, "Comment likes")
+                          }
+                          className="hover:underline"
+                        >
+                          ({comment.likeCount})
+                        </button>
+                      </div>
+
                       <button
                         type="button"
                         onClick={async () => {
@@ -373,6 +435,7 @@ export default function PostCard({ post, mode }: Props) {
                       >
                         Reply ({comment.replyCount})
                       </button>
+
                       <button
                         type="button"
                         onClick={() => loadReplies(comment.id)}
@@ -426,13 +489,24 @@ export default function PostCard({ post, mode }: Props) {
                                 </strong>
                                 <p className="mt-1">{reply.contentText}</p>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => toggleReplyLike(comment.id, reply.id)}
-                                className={`mt-2 text-sm ${muted}`}
-                              >
-                                {reply.likedByMe ? "Unlike" : "Like"} ({reply.likeCount})
-                              </button>
+
+                              <div className={`mt-2 flex items-center gap-2 text-sm ${muted}`}>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleReplyLike(comment.id, reply.id)}
+                                >
+                                  {reply.likedByMe ? "Unlike" : "Like"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    openLikesModal(`/api/replies/${reply.id}/likes`, "Reply likes")
+                                  }
+                                  className="hover:underline"
+                                >
+                                  ({reply.likeCount})
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -443,6 +517,50 @@ export default function PostCard({ post, mode }: Props) {
               </div>
             );
           })}
+        </div>
+      ) : null}
+
+      {likesModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div
+            className={`w-full max-w-md rounded-2xl p-5 shadow-xl ${
+              isDark ? "bg-[#0e2240] text-white" : "bg-white text-[#18243d]"
+            }`}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold">{likesModalTitle}</h3>
+              <button
+                type="button"
+                onClick={() => setLikesModalOpen(false)}
+                className="rounded-full px-3 py-1 text-lg hover:bg-black/10"
+              >
+                ✕
+              </button>
+            </div>
+
+            {likesLoading ? (
+              <p className={muted}>Loading...</p>
+            ) : likedUsers.length === 0 ? (
+              <p className={muted}>No likes yet.</p>
+            ) : (
+              <div className="max-h-[320px] space-y-3 overflow-y-auto">
+                {likedUsers.map((like) => (
+                  <div key={like.id} className="flex items-center gap-3">
+                    <img
+                      src={like.user.avatarUrl || "https://i.pravatar.cc/100?img=61"}
+                      alt={like.user.firstName}
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
+                    <div>
+                      <p className="font-medium">
+                        {like.user.firstName} {like.user.lastName}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       ) : null}
     </article>
